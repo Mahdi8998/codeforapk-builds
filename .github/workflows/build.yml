@@ -13,16 +13,15 @@ jobs:
         run: |
           echo "=== Files in repo root ==="
           ls -la
-          echo "=========================="
           ZIP_FILE=$(find . -maxdepth 1 -iname "*.zip" | head -n 1)
           if [ -z "$ZIP_FILE" ]; then
-            echo "::error::No ZIP file found in repository root! Check the file list above."
+            echo "::error::No ZIP file found!"
             exit 1
           fi
-          echo "Found ZIP file: $ZIP_FILE"
+          echo "Found ZIP: $ZIP_FILE"
           unzip -o "$ZIP_FILE" -d extracted
-          PROJ_DIR=$(dirname "$(find extracted -name "gradlew" -type f | head -n 1)")
-          echo "PROJ_DIR=$PROJ_DIR" >> $GITHUB_ENV
+          echo "=== Extracted structure ==="
+          find extracted -maxdepth 3 | head -60
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
@@ -30,11 +29,37 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.10.2"
+
       - name: Build Debug APK
         run: |
+          GRADLEW_PATH=$(find extracted -name "gradlew" -type f | head -n 1)
+          if [ -n "$GRADLEW_PATH" ]; then
+            PROJ_DIR=$(dirname "$GRADLEW_PATH")
+            echo "Using project wrapper at: $PROJ_DIR"
+          else
+            echo "No gradlew found — looking for Gradle project files..."
+            SETTINGS_PATH=$(find extracted -name "settings.gradle*" | head -n 1)
+            if [ -z "$SETTINGS_PATH" ]; then
+              SETTINGS_PATH=$(find extracted -name "build.gradle*" | head -n 1)
+            fi
+            if [ -z "$SETTINGS_PATH" ]; then
+              echo "::error::No Gradle files found inside ZIP!"
+              exit 1
+            fi
+            PROJ_DIR=$(dirname "$SETTINGS_PATH")
+            echo "Using project dir: $PROJ_DIR"
+          fi
           cd "$PROJ_DIR"
-          chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          if [ -f gradlew ] && [ -f gradle/wrapper/gradle-wrapper.jar ]; then
+            chmod +x gradlew
+            ./gradlew assembleDebug --no-daemon --stacktrace
+          else
+            gradle assembleDebug --no-daemon --stacktrace
+          fi
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
