@@ -53,6 +53,12 @@ jobs:
             PROJ_DIR=$(dirname "$SETTINGS_PATH")
           fi
           echo "Project directory: $PROJ_DIR"
+
+          # Generate debug keystore if missing (project expects one for signing)
+          DN="CN=Android Debug,O=Android,C=US"
+          [ -f "$PROJ_DIR/debug.keystore" ] || keytool -genkeypair -v -keystore "$PROJ_DIR/debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "$DN"
+          [ -f "$PROJ_DIR/../debug.keystore" ] || keytool -genkeypair -v -keystore "$PROJ_DIR/../debug.keystore" -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "$DN"
+
           cd "$PROJ_DIR"
           if [ -f gradlew ] && [ -f gradle/wrapper/gradle-wrapper.jar ]; then
             chmod +x gradlew
