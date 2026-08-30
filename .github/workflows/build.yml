@@ -33,10 +33,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "latest"
+          gradle-version: "8.14.2"
 
       - name: Build Debug APK
         run: |
+          set -o pipefail
           GRADLEW_PATH=$(find extracted -name "gradlew" -type f | head -n 1)
           if [ -n "$GRADLEW_PATH" ]; then
             PROJ_DIR=$(dirname "$GRADLEW_PATH")
@@ -55,9 +56,18 @@ jobs:
           cd "$PROJ_DIR"
           if [ -f gradlew ] && [ -f gradle/wrapper/gradle-wrapper.jar ]; then
             chmod +x gradlew
-            ./gradlew assembleDebug --no-daemon --stacktrace
+            ./gradlew assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
           else
-            gradle assembleDebug --no-daemon --stacktrace
+            gradle assembleDebug --no-daemon --stacktrace 2>&1 | tee build.log
+          fi
+
+      - name: Show failure reason
+        if: failure()
+        run: |
+          LOG=$(find extracted -name "build.log" | head -n 1)
+          if [ -n "$LOG" ]; then
+            echo "===== FAILURE DETAILS ====="
+            grep -B 2 -A 50 "What went wrong" "$LOG" || tail -100 "$LOG"
           fi
 
       - name: Upload APK artifact
