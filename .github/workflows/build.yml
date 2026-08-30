@@ -6,9 +6,20 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Unzip project
         run: |
-          ZIP_FILE=$(find . -maxdepth 1 -name "*.zip" | head -n 1)
+          echo "=== Files in repo root ==="
+          ls -la
+          echo "=========================="
+          ZIP_FILE=$(find . -maxdepth 1 -iname "*.zip" | head -n 1)
+          if [ -z "$ZIP_FILE" ]; then
+            echo "::error::No ZIP file found in repository root! Check the file list above."
+            exit 1
+          fi
+          echo "Found ZIP file: $ZIP_FILE"
           unzip -o "$ZIP_FILE" -d extracted
           PROJ_DIR=$(dirname "$(find extracted -name "gradlew" -type f | head -n 1)")
           echo "PROJ_DIR=$PROJ_DIR" >> $GITHUB_ENV
